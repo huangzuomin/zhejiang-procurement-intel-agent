@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-06-08T08:00:00.000Z",
+  "summary": {
+    "totalItems": 2,
+    "totalMedia": 1
+  },
+  "results": [
+    {
+      "category": "公开招标公告",
+      "code": "ZcyAnnouncement",
+      "items": [
+        {
+          "title": "浙江某单位门户网站建设项目公开招标公告",
+          "link": "https://zfcg.czt.zj.gov.cn/site/detail?articleId=sample-media",
+          "date": "2026-06-08",
+          "region": "杭州",
+          "category": "服务"
+        },
+        {
+          "title": "办公家具采购项目",
+          "link": "https://zfcg.czt.zj.gov.cn/site/detail?articleId=sample-office",
+          "date": "2026-06-08",
+          "region": "浙江",
+          "category": "货物"
+        }
+      ]
+    }
+  ]
+}

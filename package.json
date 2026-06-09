@@ -1,0 +1,17 @@
+{
+  "name": "zhejiang-procurement-intel-agent",
+  "version": "0.1.0",
+  "private": false,
+  "description": "OpenClaw-native agent and local tool layer for Zhejiang government procurement opportunity intelligence.",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "scrape:zfcg": "node scripts/zfcg_browser_scraper.js",
+    "pipeline": "python3 scripts/run_daily_pipeline.py",
+    "qa": "python3 scripts/query_opportunity_cards.py",
+    "test": "bash scripts/validate.sh"
+  },
+  "dependencies": {
+    "puppeteer": "^24.10.2"
+  }
+}

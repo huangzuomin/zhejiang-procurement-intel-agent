@@ -1,0 +1,23 @@
+.DS_Store
+.env
+.env.*
+*.log
+node_modules/
+__pycache__/
+.pytest_cache/
+.venv/
+dist/
+build/
+reports/
+handoff/*.tar.gz
+
+# Local package outputs and caches
+*.tgz
+*.tar.gz
+
+# Never commit local OpenClaw runtime state or credentials
+.openclaw/
+credentials/
+secrets/
+*.key
+*.pem

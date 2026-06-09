@@ -1,0 +1,2 @@
+# Puppeteer 依赖
+puppeteer>=21.0.0
