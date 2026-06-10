@@ -26,6 +26,10 @@ If files conflict, follow this priority:
 
 ## Development Rules
 
+- This development repository and the runtime server are different machines.
+- The runtime server is `100.91.229.7`, and runtime-side fixes may be pushed back to GitHub.
+- Before making code changes in this repository, run `git pull --ff-only origin main` and inspect incoming changes.
+- If the pull cannot fast-forward, stop and resolve the divergence explicitly instead of overwriting runtime-side work.
 - Do not edit `~/.openclaw/` directly.
 - Do not invent OpenClaw CLI commands, flags, subcommands, configuration keys, or file locations.
 - Do not use OpenClaw commands that are not explicitly listed in `docs/openclaw-contract.md`.
