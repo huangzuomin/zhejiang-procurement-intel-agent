@@ -286,6 +286,75 @@ class SQLiteStore:
             rows = conn.execute("select * from opportunity_cards order by notice_id").fetchall()
             return [dict(row) for row in rows]
 
+    def record_fetch_run(
+        self,
+        *,
+        run_id: str,
+        run_type: str,
+        started_at: str,
+        finished_at: str,
+        source: str | None,
+        raw_count: int,
+        new_count: int,
+        enriched_count: int,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        self.initialize()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                insert into fetch_runs (
+                  run_id,
+                  run_type,
+                  started_at,
+                  finished_at,
+                  source,
+                  raw_count,
+                  new_count,
+                  enriched_count,
+                  status,
+                  error
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(run_id) do update set
+                  run_type = excluded.run_type,
+                  started_at = excluded.started_at,
+                  finished_at = excluded.finished_at,
+                  source = excluded.source,
+                  raw_count = excluded.raw_count,
+                  new_count = excluded.new_count,
+                  enriched_count = excluded.enriched_count,
+                  status = excluded.status,
+                  error = excluded.error
+                """,
+                (
+                    run_id,
+                    run_type,
+                    started_at,
+                    finished_at,
+                    source,
+                    raw_count,
+                    new_count,
+                    enriched_count,
+                    status,
+                    error,
+                ),
+            )
+            conn.commit()
+
+    def record_quality_report(self, *, fetch_run_id: str, report_json: str, created_at: str) -> None:
+        self.initialize()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                insert into quality_reports (fetch_run_id, report_json, created_at)
+                values (?, ?, ?)
+                """,
+                (fetch_run_id, report_json, created_at),
+            )
+            conn.commit()
+
 
 def _confidence_to_float(value: str) -> float:
     return {
