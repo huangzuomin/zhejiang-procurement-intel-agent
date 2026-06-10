@@ -215,3 +215,21 @@ The current Agent is useful as a daily opportunity radar. To become a durable pr
 ### Impact
 
 Future coding agents should read `docs/future_requirements.md` before implementing post-MVP upgrades. Before editing code, agents must pull from GitHub to avoid overwriting runtime-side changes.
+
+## 2026-06-10
+
+### Observation
+
+The user reported that real-time full collection plus brief generation can time out when the daily notice volume is large. The proposed runtime model is hourly collection into local storage, followed by scheduled AM/PM brief generation from already-collected data.
+
+### Decision
+
+Adopt SQLite-backed hourly collection as the next upgrade direction. Save the implementation plan in `docs/superpowers/plans/2026-06-10-sqlite-hourly-collection.md`.
+
+### Reason
+
+Brief generation should not depend on a browser scrape completing at the brief deadline. SQLite provides a local fact store for deduplication, incremental detail enrichment, AM/PM push state, and later成交结果/lifecycle/profile features without introducing Supabase or another external service too early.
+
+### Impact
+
+The next implementation should first build SQLite storage and hourly ingestion, then switch AM/PM brief generation to read from SQLite. The current real-time `full_collect_and_brief.js` path should remain as a fallback until the SQLite flow has passed smoke testing on the runtime server.

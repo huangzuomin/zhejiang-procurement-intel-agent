@@ -461,3 +461,21 @@ Suggested first task:
 ```text
 实现 SQLite storage adapter，并把现有双栏目采集结果、opportunity_cards、quality_report 写入本地数据库，同时保持现有 JSON/Markdown 输出不变。
 ```
+
+## 已制定实施计划
+
+SQLite 小时级持续采集和 AM/PM 从库生成简报的实施计划已保存到：
+
+```text
+docs/superpowers/plans/2026-06-10-sqlite-hourly-collection.md
+```
+
+该计划将第一阶段限定为：
+
+- SQLite 本地事实库。
+- 每小时采集并入库。
+- 已知 URL 跳过详情补全。
+- AM/PM 简报从 SQLite 读取，不实时抓取。
+- 系统健康报告。
+
+成交结果采集、生命周期关联、采购人画像和供应商画像应在该计划完成并稳定运行后进入下一轮计划。
