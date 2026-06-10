@@ -5,6 +5,7 @@ from procurement_intel.scorer import score_notice
 from procurement_intel.storage import SQLiteStore
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -27,6 +28,26 @@ def test_am_brief_reads_sqlite_and_omits_d_noise(tmp_path):
     assert "门户网站建设项目公开招标公告" in message
     assert "融媒体建设项目采购意向" in message
     assert "教学一体机采购公告" not in message
+
+
+def test_am_brief_uses_dingtalk_markdown_links_and_action_sections(tmp_path):
+    db_path = tmp_path / "procurement_intel.db"
+    store = SQLiteStore(db_path)
+    store.initialize()
+    _seed_card(store, _notice("门户网站建设项目公开招标公告", "门户网站建设、内容管理和运维服务。", "bid"))
+    for index in range(1, 8):
+        _seed_card(store, _notice(f"融媒体建设项目采购意向{index}", "融媒体建设、新媒体内容运营。", "intention"))
+
+    message = build_brief_from_db(db_path, today="2026-06-10", mode="am")
+
+    assert "今日结论:" in message
+    assert "A类｜立即响应" in message
+    assert "B类｜提前跟进" in message
+    assert "今日建议:" in message
+    assert "[详情](https://zfcg.czt.zj.gov.cn/site/detail?articleId=" in message
+    assert "另有 2 条 B 类线索已压缩" in message
+    assert "融媒体建设项目采购意向6" not in message
+    assert _bare_urls_outside_markdown_links(message) == []
 
 
 def test_pm_brief_only_includes_unpushed_focus_items(tmp_path):
@@ -184,3 +205,8 @@ def _seed_card(store: SQLiteStore, notice: Notice) -> int:
     card = score_notice(notice, classify_notice(notice), today="2026-06-10")
     store.upsert_opportunity_card(notice_id, card, scored_at="2026-06-10T08:00:00")
     return notice_id
+
+
+def _bare_urls_outside_markdown_links(message: str) -> list[str]:
+    without_markdown_links = re.sub(r"\[[^\]]+\]\(https?://[^)]+\)", "", message)
+    return re.findall(r"https?://\S+", without_markdown_links)
