@@ -197,3 +197,21 @@ This preserves a clear boundary between public data collection, deterministic in
 ### Impact
 
 The Agent skill README files now document inputs, defaults, outputs, acceptance sample, and safety boundaries. Deployment remains blocked until tool-layer packaging and runtime target are explicitly approved.
+
+## 2026-06-10
+
+### Observation
+
+The deployed runtime and the development repository now operate on different machines. The runtime server is `100.91.229.7`, and runtime-side fixes may be pushed back to GitHub. The user also clarified future product directions around成交结果, lifecycle tracking, database storage, buyer/supplier profiles, n8n boundaries and historical QA.
+
+### Decision
+
+Record future requirements in `docs/future_requirements.md`. Treat SQLite as the recommended first storage layer, keep n8n out of the scraping core, and prioritize成交结果采集, project lifecycle linking, buyer/supplier profiles, price benchmarks and system health reports.
+
+### Reason
+
+The current Agent is useful as a daily opportunity radar. To become a durable procurement intelligence system, it needs a long-term fact store and lifecycle data. However, the next phase should remain conservative: local SQLite and deterministic scripts first, Supabase/Postgres and n8n orchestration later only when multi-user or remote access requirements become concrete.
+
+### Impact
+
+Future coding agents should read `docs/future_requirements.md` before implementing post-MVP upgrades. Before editing code, agents must pull from GitHub to avoid overwriting runtime-side changes.
