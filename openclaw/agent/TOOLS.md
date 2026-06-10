@@ -6,6 +6,7 @@ This file documents intended tool usage. It does not grant tool access.
 
 ## Intended Tool Layer
 
+- Release management: read `openclaw/agent/resources/release_management.md` before deployment, rollback, runtime hotfix or schedule changes.
 - Hourly collector: `python3 scripts/run_hourly_collection.py --today YYYY-MM-DD --hour HH --db-path data/procurement_intel.db` writes known URLs, runs `scripts/zfcg_browser_scraper.js` for `intention,bid`, saves `data/snapshots/<date>/<hour>.json`, then ingests the snapshot into SQLite.
 - Snapshot ingest: `python3 scripts/run_hourly_ingest.py data/snapshots/<date>/<hour>.json --today YYYY-MM-DD --db-path data/procurement_intel.db --json` converts scraper JSON into cleaned notices, opportunity cards, fetch runs and quality reports. Normal hourly ingest filters out notices whose `publish_date` is not `--today`; use `--include-historical` only for controlled backfill.
 - AM brief from DB: `python3 scripts/run_brief_from_db.py --mode am --today YYYY-MM-DD --db-path data/procurement_intel.db --output-dir reports/<date>/am`. After a successful DingTalk send, rerun/add `--record-push-success` so PM can suppress already-pushed A/B focus items.
@@ -21,6 +22,11 @@ This file documents intended tool usage. It does not grant tool access.
 
 ## Rules
 
+- Prefer deploying a named Git tag; deploy an untagged commit only with explicit user approval.
+- Do not deploy a dirty runtime worktree.
+- Runtime-side code fixes must be pushed back to GitHub through a branch/PR.
+- Do not modify scheduled tasks without updating `docs/runtime_schedule.md` in the development repository.
+- Deployments, rollbacks and schedule changes must be recorded in `docs/deploy_log.md`.
 - Do not invent tools.
 - Do not invent command flags.
 - Do not run destructive commands without explicit permission.

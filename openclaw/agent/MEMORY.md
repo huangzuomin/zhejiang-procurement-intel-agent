@@ -86,3 +86,24 @@
 - `scripts/full_collect_and_brief.js` 和 live JSON -> `run_daily_pipeline.py` 仍可用
 - SQLite cutover 后默认不要用旧实时流水线做高量定时任务
 - 如果 SQLite 健康报告 FAIL，可临时回滚到 live JSON 流程，但要保留失败快照和错误信息
+
+## 2026-06-10 版本管理规则
+
+### 运行经验
+
+**14. Runtime 不应部署随手文件状态**
+- 正式部署优先使用已批准的 Git tag
+- 未打 tag 的 commit 只能在用户明确批准 hotfix 时部署
+- runtime 侧临时修复必须推回 GitHub，走 branch/PR
+- 不要部署 dirty worktree
+
+**15. 定时任务也是版本的一部分**
+- 当前 schedule version: `schedule-v0.2.0`
+- 小时采集、AM brief、AM push success 记录、PM brief、health report 是一组调度合同
+- 改 OpenClaw 定时任务时必须同步更新 `docs/runtime_schedule.md`
+- 部署或回滚必须追加 `docs/deploy_log.md`
+
+**16. 部署前读取 release management 资源**
+- 部署、回滚或改 schedule 前先读 `openclaw/agent/resources/release_management.md`
+- 确认 code version、runtime schedule version、rollback target、validate 结果和 dry-run forbidden matches
+- 运行数据、SQLite DB、reports、secrets 不进入 GitHub
