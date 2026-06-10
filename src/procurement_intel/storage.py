@@ -458,6 +458,22 @@ class SQLiteStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def list_fetch_runs_for_date(self, today: str, *, run_type: str | None = None) -> list[dict]:
+        self.initialize()
+        query = """
+            select *
+            from fetch_runs
+            where substr(started_at, 1, 10) = ?
+        """
+        params: list[str] = [today]
+        if run_type:
+            query += " and run_type = ?"
+            params.append(run_type)
+        query += " order by started_at, id"
+        with self.connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+            return [dict(row) for row in rows]
+
 
 def _confidence_to_float(value: str) -> float:
     return {

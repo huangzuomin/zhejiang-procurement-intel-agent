@@ -87,19 +87,27 @@ Approved `src/` files:
 - `src/procurement_intel/classifier.py`
 - `src/procurement_intel/collector.py`
 - `src/procurement_intel/daily_pipeline.py`
+- `src/procurement_intel/db_briefing.py`
 - `src/procurement_intel/external_fetcher.py`
+- `src/procurement_intel/health.py`
+- `src/procurement_intel/hourly_ingestion.py`
 - `src/procurement_intel/models.py`
 - `src/procurement_intel/parser.py`
 - `src/procurement_intel/qa.py`
 - `src/procurement_intel/scorer.py`
 - `src/procurement_intel/scrape_quality.py`
+- `src/procurement_intel/storage.py`
 
 Approved `scripts/` files:
 
 - `scripts/evaluate_scrape_quality.py`
 - `scripts/prepare_deploy_dry_run.py`
 - `scripts/query_opportunity_cards.py`
+- `scripts/run_brief_from_db.py`
 - `scripts/run_daily_pipeline.py`
+- `scripts/run_health_report.py`
+- `scripts/run_hourly_collection.py`
+- `scripts/run_hourly_ingest.py`
 - `scripts/validate.sh`
 - `scripts/zfcg_browser_scraper.js`
 
@@ -150,11 +158,28 @@ This command must not copy, delete, or modify runtime files.
 
 ## Runtime Invocation Entrypoints
 
-Generate today's brief from live public collection:
+Run one hourly public collection into SQLite:
 
 ```bash
-node scripts/zfcg_browser_scraper.js --targets intention,bid --limit 30 --detail-limit 30 --output reports/<date>/zfcg-browser-two-columns-30.json
-python3 scripts/run_daily_pipeline.py reports/<date>/zfcg-browser-two-columns-30.json --today <date> --output-dir reports/<date>/daily-pipeline
+python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path data/procurement_intel.db
+```
+
+Generate the AM brief from SQLite:
+
+```bash
+python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am
+```
+
+Generate the PM incremental brief from SQLite:
+
+```bash
+python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am --db-path data/procurement_intel.db --output-dir reports/<date>/pm
+```
+
+Generate collection health report:
+
+```bash
+python3 scripts/run_health_report.py --today <date> --db-path data/procurement_intel.db --output reports/<date>/health_report.json
 ```
 
 Generate a brief from an existing scraper JSON:

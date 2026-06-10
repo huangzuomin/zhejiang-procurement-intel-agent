@@ -13,7 +13,11 @@ TOOL_SCRIPTS = {
     "scripts/evaluate_scrape_quality.py",
     "scripts/prepare_deploy_dry_run.py",
     "scripts/query_opportunity_cards.py",
+    "scripts/run_brief_from_db.py",
     "scripts/run_daily_pipeline.py",
+    "scripts/run_health_report.py",
+    "scripts/run_hourly_collection.py",
+    "scripts/run_hourly_ingest.py",
     "scripts/validate.sh",
     "scripts/zfcg_browser_scraper.js",
 }
@@ -55,7 +59,10 @@ def build_payload() -> dict:
         "deployable_files": deployable_files,
         "forbidden_matches": forbidden_matches,
         "entrypoints": {
-            "today_daily_brief": "node scripts/zfcg_browser_scraper.js --targets intention,bid --limit 30 --detail-limit 30 --output reports/<date>/zfcg-browser-two-columns-30.json && python3 scripts/run_daily_pipeline.py reports/<date>/zfcg-browser-two-columns-30.json --today <date> --output-dir reports/<date>/daily-pipeline",
+            "hourly_collection": "python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path data/procurement_intel.db",
+            "am_brief_from_db": "python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am",
+            "pm_brief_from_db": "python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am --db-path data/procurement_intel.db --output-dir reports/<date>/pm",
+            "health_report": "python3 scripts/run_health_report.py --today <date> --db-path data/procurement_intel.db --output reports/<date>/health_report.json",
             "brief_from_existing_json": "python3 scripts/run_daily_pipeline.py <zfcg-json> --today <date> --output-dir <output-dir>",
             "opportunity_cards_qa": "python3 scripts/query_opportunity_cards.py <opportunity_cards.json> '<question>'",
         },
