@@ -103,6 +103,67 @@ def test_run_brief_from_db_cli_writes_outputs(tmp_path):
     assert "门户网站建设项目公开招标公告" in Path(payload["paths"]["daily_brief"]).read_text(encoding="utf-8")
 
 
+def test_run_brief_from_db_cli_records_am_push_success_for_focus_items(tmp_path):
+    db_path = tmp_path / "procurement_intel.db"
+    am_output_dir = tmp_path / "am"
+    pm_output_dir = tmp_path / "pm"
+    store = SQLiteStore(db_path)
+    store.initialize()
+    _seed_card(store, _notice("门户网站建设项目公开招标公告", "门户网站建设服务。", "bid"))
+
+    am_result = subprocess.run(
+        [
+            "python3",
+            "scripts/run_brief_from_db.py",
+            "--mode",
+            "am",
+            "--today",
+            "2026-06-10",
+            "--db-path",
+            str(db_path),
+            "--output-dir",
+            str(am_output_dir),
+            "--record-push-success",
+            "--json",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    am_payload = json.loads(am_result.stdout)
+    assert am_payload["recorded_push_count"] == 1
+
+    pm_result = subprocess.run(
+        [
+            "python3",
+            "scripts/run_brief_from_db.py",
+            "--mode",
+            "pm",
+            "--today",
+            "2026-06-10",
+            "--since-brief",
+            "am",
+            "--db-path",
+            str(db_path),
+            "--output-dir",
+            str(pm_output_dir),
+            "--json",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    pm_payload = json.loads(pm_result.stdout)
+    assert Path(pm_payload["paths"]["daily_brief"]).exists()
+    pm_brief = Path(pm_payload["paths"]["daily_brief"]).read_text(encoding="utf-8")
+    assert "下午无新增重点机会" in pm_brief
+    assert "门户网站建设项目公开招标公告" not in pm_brief
+
+
 def _notice(title: str, content: str, source_column: str) -> Notice:
     return Notice(
         title=title,

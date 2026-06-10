@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .storage import SQLiteStore
@@ -55,6 +56,55 @@ def build_brief_from_db(
     if hidden > 0:
         lines.append(f"另有 {hidden} 条重点机会已压缩。")
     return "\n".join(lines)
+
+
+def focus_notice_ids_for_brief(
+    db_path: str | Path,
+    *,
+    today: str,
+    mode: str,
+    since_brief: str = "am",
+    max_items: int = 10,
+) -> list[int]:
+    store = SQLiteStore(db_path)
+    if mode == "pm":
+        cards = store.list_unpushed_focus_cards(today, pushed_mode=since_brief)
+    else:
+        cards = [
+            card
+            for card in store.list_cards_for_date(today)
+            if card["opportunity_class"] in {"A", "B"}
+        ]
+    return [int(card["notice_id"]) for card in cards[:max_items]]
+
+
+def record_brief_push_success(
+    db_path: str | Path,
+    *,
+    today: str,
+    mode: str,
+    since_brief: str = "am",
+    max_items: int = 10,
+    pushed_at: str | None = None,
+) -> int:
+    store = SQLiteStore(db_path)
+    notice_ids = focus_notice_ids_for_brief(
+        db_path,
+        today=today,
+        mode=mode,
+        since_brief=since_brief,
+        max_items=max_items,
+    )
+    timestamp = pushed_at or datetime.now(UTC).replace(microsecond=0).isoformat()
+    for notice_id in notice_ids:
+        store.record_push_event(
+            notice_id=notice_id,
+            brief_date=today,
+            brief_mode=mode,
+            status="success",
+            pushed_at=timestamp,
+        )
+    return len(notice_ids)
 
 
 def _counts(cards: list[dict]) -> dict[str, int]:

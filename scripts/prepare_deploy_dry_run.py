@@ -61,8 +61,10 @@ def build_payload() -> dict:
         "entrypoints": {
             "hourly_collection": "python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path data/procurement_intel.db",
             "am_brief_from_db": "python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am",
+            "record_am_push_success": "python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am --record-push-success",
             "pm_brief_from_db": "python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am --db-path data/procurement_intel.db --output-dir reports/<date>/pm",
             "health_report": "python3 scripts/run_health_report.py --today <date> --db-path data/procurement_intel.db --output reports/<date>/health_report.json",
+            "controlled_backfill": "python3 scripts/run_hourly_ingest.py <snapshot.json> --today <date> --db-path data/procurement_intel.db --include-historical --run-type backfill --json",
             "brief_from_existing_json": "python3 scripts/run_daily_pipeline.py <zfcg-json> --today <date> --output-dir <output-dir>",
             "opportunity_cards_qa": "python3 scripts/query_opportunity_cards.py <opportunity_cards.json> '<question>'",
         },

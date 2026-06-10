@@ -16,7 +16,13 @@ from procurement_intel.hourly_ingestion import ingest_scraper_payload
 def main() -> int:
     args = parse_args()
     payload = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
-    result = ingest_scraper_payload(payload, db_path=args.db_path, today=args.today, run_type=args.run_type)
+    result = ingest_scraper_payload(
+        payload,
+        db_path=args.db_path,
+        today=args.today,
+        run_type=args.run_type,
+        include_historical=args.include_historical,
+    )
     output = {
         "run_id": result.run_id,
         "raw_count": result.raw_count,
@@ -45,6 +51,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--today", required=True, help="Date used for scoring and quality evaluation.")
     parser.add_argument("--db-path", default="data/procurement_intel.db", help="SQLite database path.")
     parser.add_argument("--run-type", default="hourly", help="Fetch run type label.")
+    parser.add_argument(
+        "--include-historical",
+        action="store_true",
+        help="Ingest notices whose publish_date differs from --today. Use only for controlled backfill/bootstrap.",
+    )
     parser.add_argument("--json", action="store_true", help="Print JSON summary.")
     return parser.parse_args()
 

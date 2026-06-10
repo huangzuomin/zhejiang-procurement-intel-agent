@@ -111,15 +111,26 @@ class SQLiteStore:
         conn.execute("pragma foreign_keys = on")
         return conn
 
-    def upsert_notice(self, notice: Notice, *, fetch_run_id: str, seen_at: str) -> int:
+    def upsert_notice(
+        self,
+        notice: Notice,
+        *,
+        fetch_run_id: str,
+        seen_at: str,
+        preserve_existing_fields: bool = False,
+    ) -> int:
         self.initialize()
         project_name = getattr(notice, "project_name", None)
         with self.connect() as conn:
             existing = conn.execute(
-                "select id, first_seen_at from notices where detail_url = ?",
+                "select * from notices where detail_url = ?",
                 (notice.url,),
             ).fetchone()
             if existing:
+                buyer = _preserve_if_missing(notice.buyer, existing["buyer"], preserve_existing_fields)
+                budget = _preserve_if_missing(notice.budget, existing["budget"], preserve_existing_fields)
+                deadline = _preserve_if_missing(notice.deadline, existing["deadline"], preserve_existing_fields)
+                project_name = _preserve_if_missing(project_name, existing["project_name"], preserve_existing_fields)
                 conn.execute(
                     """
                     update notices
@@ -148,9 +159,9 @@ class SQLiteStore:
                         notice.publish_date,
                         notice.region,
                         notice.category_code,
-                        notice.buyer,
-                        notice.budget,
-                        notice.deadline,
+                        buyer,
+                        budget,
+                        deadline,
                         project_name,
                         seen_at,
                         fetch_run_id,
@@ -286,6 +297,12 @@ class SQLiteStore:
             rows = conn.execute("select * from opportunity_cards order by notice_id").fetchall()
             return [dict(row) for row in rows]
 
+    def get_opportunity_card_by_notice_id(self, notice_id: int) -> dict | None:
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute("select * from opportunity_cards where notice_id = ?", (notice_id,)).fetchone()
+            return dict(row) if row else None
+
     def record_fetch_run(
         self,
         *,
@@ -400,7 +417,8 @@ class SQLiteStore:
                   opportunity_cards.scored_at
                 from notices
                 join opportunity_cards on opportunity_cards.notice_id = notices.id
-                where notices.publish_date = ? or substr(notices.first_seen_at, 1, 10) = ?
+                where notices.publish_date = ?
+                   or (notices.publish_date is null and substr(notices.first_seen_at, 1, 10) = ?)
                 order by
                   case opportunity_cards.opportunity_class
                     when 'A' then 1
@@ -440,7 +458,7 @@ class SQLiteStore:
                   opportunity_cards.scored_at
                 from notices
                 join opportunity_cards on opportunity_cards.notice_id = notices.id
-                where (notices.publish_date = ? or substr(notices.first_seen_at, 1, 10) = ?)
+                where (notices.publish_date = ? or (notices.publish_date is null and substr(notices.first_seen_at, 1, 10) = ?))
                   and opportunity_cards.opportunity_class in ('A', 'B')
                   and not exists (
                     select 1
@@ -481,3 +499,9 @@ def _confidence_to_float(value: str) -> float:
         "medium": 0.6,
         "low": 0.3,
     }.get(value, 0.0)
+
+
+def _preserve_if_missing(value, existing, preserve: bool):
+    if preserve and value is None and existing is not None:
+        return existing
+    return value

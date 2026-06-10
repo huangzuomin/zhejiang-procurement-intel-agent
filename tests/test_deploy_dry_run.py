@@ -35,8 +35,10 @@ def test_deploy_dry_run_reports_allowed_files_and_excludes_forbidden_patterns() 
     assert "package.json" in payload["deployable_files"]
     assert "hourly_collection" in payload["entrypoints"]
     assert "am_brief_from_db" in payload["entrypoints"]
+    assert "record_am_push_success" in payload["entrypoints"]
     assert "pm_brief_from_db" in payload["entrypoints"]
     assert "health_report" in payload["entrypoints"]
+    assert "controlled_backfill" in payload["entrypoints"]
     assert payload["forbidden_matches"] == []
     assert all("node_modules" not in path for path in payload["deployable_files"])
     assert all("__pycache__" not in path for path in payload["deployable_files"])

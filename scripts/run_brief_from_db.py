@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from procurement_intel.db_briefing import build_brief_from_db
+from procurement_intel.db_briefing import build_brief_from_db, record_brief_push_success
 
 
 def main() -> int:
@@ -28,6 +28,14 @@ def main() -> int:
         "summary": output_dir / "summary.json",
     }
     paths["daily_brief"].write_text(brief, encoding="utf-8")
+    recorded_push_count = 0
+    if args.record_push_success:
+        recorded_push_count = record_brief_push_success(
+            args.db_path,
+            today=args.today,
+            mode=args.mode,
+            since_brief=args.since_brief,
+        )
     paths["summary"].write_text(
         json.dumps(
             {
@@ -35,13 +43,17 @@ def main() -> int:
                 "mode": args.mode,
                 "db_path": args.db_path,
                 "outputs": {key: str(path) for key, path in paths.items()},
+                "recorded_push_count": recorded_push_count,
             },
             ensure_ascii=False,
             indent=2,
         ),
         encoding="utf-8",
     )
-    payload = {"paths": {key: str(path) for key, path in paths.items()}}
+    payload = {
+        "paths": {key: str(path) for key, path in paths.items()},
+        "recorded_push_count": recorded_push_count,
+    }
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
@@ -57,6 +69,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--since-brief", default="am", help="Push-event mode to exclude for PM briefs.")
     parser.add_argument("--db-path", default="data/procurement_intel.db", help="SQLite database path.")
     parser.add_argument("--output-dir", default="reports/latest_daily_pipeline", help="Output directory.")
+    parser.add_argument(
+        "--record-push-success",
+        action="store_true",
+        help="Record successfully pushed A/B focus items for this brief mode.",
+    )
     parser.add_argument("--json", action="store_true", help="Print JSON output paths.")
     return parser.parse_args()
 

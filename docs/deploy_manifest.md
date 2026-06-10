@@ -170,6 +170,12 @@ Generate the AM brief from SQLite:
 python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am
 ```
 
+Record AM push success after the outbound message is accepted:
+
+```bash
+python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am --record-push-success
+```
+
 Generate the PM incremental brief from SQLite:
 
 ```bash
@@ -181,6 +187,14 @@ Generate collection health report:
 ```bash
 python3 scripts/run_health_report.py --today <date> --db-path data/procurement_intel.db --output reports/<date>/health_report.json
 ```
+
+Controlled backfill/bootstrap only:
+
+```bash
+python3 scripts/run_hourly_ingest.py <snapshot.json> --today <date> --db-path data/procurement_intel.db --include-historical --run-type backfill --json
+```
+
+Do not use `--include-historical` in normal hourly schedules.
 
 Generate a brief from an existing scraper JSON:
 

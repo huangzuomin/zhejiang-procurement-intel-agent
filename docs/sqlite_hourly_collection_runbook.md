@@ -32,6 +32,8 @@ Default behavior:
 - Saves raw scraper snapshot to `data/snapshots/<date>/<HH>.json`.
 - Ingests the snapshot into SQLite through `scripts/run_hourly_ingest.py`.
 - Skips detail enrichment for URLs already known for the day.
+- In normal hourly mode, ingests only notices whose `publish_date` equals `--today`.
+- If a known URL skips detail enrichment, existing non-empty buyer, budget, deadline and opportunity score are preserved.
 
 Dry-run without browser launch:
 
@@ -49,6 +51,14 @@ python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/pro
 
 The AM brief summarizes all stored notices for the day, expands A/B focus opportunities, and keeps C/D items as distribution counts instead of noisy detail lists.
 
+After the AM brief has actually been pushed successfully, record the pushed A/B focus items:
+
+```bash
+python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am --record-push-success
+```
+
+Only use `--record-push-success` after the outbound channel reports success. Do not record it for failed or skipped DingTalk sends.
+
 ## PM Brief
 
 Generate the afternoon incremental brief from SQLite:
@@ -58,6 +68,23 @@ python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am -
 ```
 
 The PM brief should only expand unpushed A/B focus opportunities. It should not repeat AM focus items that have successful `push_events` for the same date.
+
+## Bootstrap and Backfill
+
+First-day cutover risk: an empty SQLite database plus a high collection limit can see historical list items. Normal hourly ingestion filters those out by default because only `publish_date == --today` is accepted.
+
+For controlled backfill only, ingest an existing snapshot explicitly:
+
+```bash
+python3 scripts/run_hourly_ingest.py <snapshot.json> --today <date> --db-path data/procurement_intel.db --include-historical --run-type backfill --json
+```
+
+Backfill rules:
+
+- Run backfill before enabling scheduled AM/PM push.
+- Review health and brief output before recording push success.
+- Do not use `--include-historical` in the normal hourly schedule.
+- Keep the backfill snapshot and command output for audit.
 
 ## Health Report
 

@@ -86,3 +86,99 @@ def test_run_hourly_ingest_cli_outputs_json_summary(tmp_path):
     assert payload["new_count"] == 1
     assert payload["quality_grade"] in {"PASS", "WARN"}
     assert payload["opportunity_counts"]["B"] == 1
+
+
+def test_known_url_detail_skip_preserves_fields_and_score(tmp_path):
+    db_path = tmp_path / "procurement_intel.db"
+    url = "https://zfcg.czt.zj.gov.cn/site/detail?articleId=stable-bid"
+    first_payload = {
+        "source": "zfcg_browser_scraper",
+        "notices": [
+            {
+                "title": "门户网站建设与新媒体运营服务公开招标公告",
+                "detail_url": url,
+                "notice_type": "招标公告",
+                "publish_date": "2026-06-10",
+                "region": "浙江",
+                "source_column": "bid",
+                "buyer": "浙江某单位",
+                "budget": 600000,
+                "deadline": "2026-06-30",
+                "raw_detail_text": "采购需求：门户网站建设、内容管理和新媒体运营。",
+            }
+        ],
+    }
+    second_payload = {
+        "source": "zfcg_browser_scraper",
+        "notices": [
+            {
+                "title": "门户网站建设与新媒体运营服务公开招标公告",
+                "detail_url": url,
+                "notice_type": "招标公告",
+                "publish_date": "2026-06-10",
+                "region": "浙江",
+                "source_column": "bid",
+                "buyer": None,
+                "budget": None,
+                "deadline": None,
+                "raw_detail_text": None,
+                "known_url": True,
+                "detail_skipped_reason": "known_url",
+            }
+        ],
+    }
+
+    ingest_scraper_payload(first_payload, db_path=db_path, today="2026-06-10", run_type="hourly")
+    first_card = SQLiteStore(db_path).list_opportunity_cards()[0]
+    ingest_scraper_payload(second_payload, db_path=db_path, today="2026-06-10", run_type="hourly")
+
+    store = SQLiteStore(db_path)
+    stored = store.get_notice_by_url(url)
+    second_card = store.list_opportunity_cards()[0]
+
+    assert stored["buyer"] == "浙江某单位"
+    assert stored["budget"] == 600000
+    assert stored["deadline"] == "2026-06-30"
+    assert first_card["opportunity_class"] == "A"
+    assert second_card["opportunity_class"] == "A"
+
+
+def test_hourly_ingestion_filters_historical_notices_by_default(tmp_path):
+    db_path = tmp_path / "procurement_intel.db"
+    payload = {
+        "source": "zfcg_browser_scraper",
+        "notices": [
+            {
+                "title": "历史门户网站建设项目公开招标公告",
+                "detail_url": "https://zfcg.czt.zj.gov.cn/site/detail?articleId=old",
+                "notice_type": "招标公告",
+                "publish_date": "2026-06-01",
+                "region": "浙江",
+                "source_column": "bid",
+                "buyer": "浙江某单位",
+                "budget": 600000,
+                "deadline": "2026-06-30",
+                "raw_detail_text": "采购需求：门户网站建设、内容管理和新媒体运营。",
+            },
+            {
+                "title": "今日门户网站建设项目公开招标公告",
+                "detail_url": "https://zfcg.czt.zj.gov.cn/site/detail?articleId=today",
+                "notice_type": "招标公告",
+                "publish_date": "2026-06-10",
+                "region": "浙江",
+                "source_column": "bid",
+                "buyer": "浙江某单位",
+                "budget": 600000,
+                "deadline": "2026-06-30",
+                "raw_detail_text": "采购需求：门户网站建设、内容管理和新媒体运营。",
+            },
+        ],
+    }
+
+    result = ingest_scraper_payload(payload, db_path=db_path, today="2026-06-10", run_type="hourly")
+    cards = SQLiteStore(db_path).list_cards_for_date("2026-06-10")
+
+    assert result.raw_count == 2
+    assert result.cleaned_count == 1
+    assert result.new_count == 1
+    assert [card["title"] for card in cards] == ["今日门户网站建设项目公开招标公告"]
