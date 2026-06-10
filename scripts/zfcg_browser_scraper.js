@@ -53,6 +53,7 @@ async function main() {
   );
 
   try {
+    const knownUrls = loadKnownUrls(args.knownUrlsFile);
     const notices = [];
     for (const target of args.targets) {
       await page.goto(args.sourceUrl, { waitUntil: "networkidle2", timeout: args.timeoutMs });
@@ -70,11 +71,13 @@ async function main() {
         }
 
         let detail = {};
-        if (args.details && index < args.detailLimit) {
+        if (shouldFetchDetail(item, args, knownUrls, index)) {
           detail = await fetchPortalDetail(item.detail_url, args.timeoutMs);
           if (args.delayMs > 0 && index < listItems.length - 1) {
             await delay(args.delayMs);
           }
+        } else if (knownUrls.has(item.detail_url)) {
+          detail = { known_url: true, detail_skipped_reason: "known_url" };
         }
         notices.push({ ...item, ...detail });
         console.error(`[${target.key} ${index + 1}/${listItems.length}] ${item.title}`);
@@ -397,6 +400,7 @@ function parseArgs(argv) {
     renderWaitMs: 5000,
     delayMs: 800,
     details: true,
+    knownUrlsFile: null,
     printTargets: false,
     targetKeys: [],
   };
@@ -434,12 +438,36 @@ function parseArgs(argv) {
       index += 1;
     } else if (key === "--no-details") {
       args.details = false;
+    } else if (key === "--known-urls-file") {
+      args.knownUrlsFile = value;
+      index += 1;
     }
   }
   args.limit = clampPositiveInteger(args.limit, 15);
   args.detailLimit = Math.min(clampPositiveInteger(args.detailLimit, args.limit), args.limit);
   args.targets = resolveTargets(args.targetKeys);
   return args;
+}
+
+function loadKnownUrls(filepath) {
+  if (!filepath) {
+    return new Set();
+  }
+  try {
+    return new Set(
+      fs
+        .readFileSync(filepath, "utf8")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function shouldFetchDetail(item, args, knownUrls, index) {
+  return Boolean(args.details && index < args.detailLimit && item.detail_url && !knownUrls.has(item.detail_url));
 }
 
 function resolveTargets(keys) {
@@ -471,7 +499,10 @@ function delay(ms) {
 
 module.exports = {
   extractBuyer,
+  loadKnownUrls,
+  parseArgs,
   parseBudget,
+  shouldFetchDetail,
 };
 
 if (require.main === module) {

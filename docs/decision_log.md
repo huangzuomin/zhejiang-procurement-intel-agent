@@ -233,3 +233,21 @@ Brief generation should not depend on a browser scrape completing at the brief d
 ### Impact
 
 The next implementation should first build SQLite storage and hourly ingestion, then switch AM/PM brief generation to read from SQLite. The current real-time `full_collect_and_brief.js` path should remain as a fallback until the SQLite flow has passed smoke testing on the runtime server.
+
+## 2026-06-10
+
+### Observation
+
+The SQLite upgrade now has a deployable local tool layer: storage schema, idempotent notice/card upserts, hourly snapshot ingestion, known-URL-aware browser collection, DB-backed AM/PM brief generation, an hourly collection orchestrator, and a health report.
+
+### Decision
+
+Make SQLite hourly collection the preferred runtime path. AM/PM brief generation should read `data/procurement_intel.db` and must not launch browser collection at brief time. Keep the live JSON pipeline and `full_collect_and_brief.js` available only as rollback/transition paths.
+
+### Reason
+
+Separating collection from briefing reduces timeout risk, preserves raw evidence, enables incremental detail enrichment, and creates the storage foundation for成交结果, lifecycle tracking, buyer/supplier profiles and historical QA.
+
+### Impact
+
+Runtime operators should follow `docs/sqlite_hourly_collection_runbook.md` for scheduling, health checks, failure handling and rollback. Deployment dry-run now includes the SQLite scripts and modules, while still excluding runtime databases, snapshots, reports and secrets.

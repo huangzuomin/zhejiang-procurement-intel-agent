@@ -64,3 +64,25 @@
 3. 读取 brief → `message` 发钉钉
 4. PM 同样流程，自动 diff
 5. 全流程可用 cron 定时执行（如每日 9:00 AM + 14:00 PM）
+
+## 2026-06-10 SQLite 小时级采集升级
+
+### 运行经验
+
+**11. 高数据量场景不要在简报时间点实时全量抓取**
+- 454 条级别的全量抓取、详情补全、分类和简报生成放在同一个 AM/PM 任务里容易超时
+- 正确路径：每小时采集并入库，AM/PM 简报只读 SQLite
+- 小时入口：`python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path data/procurement_intel.db`
+- AM 入口：`python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am`
+- PM 入口：`python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am --db-path data/procurement_intel.db --output-dir reports/<date>/pm`
+
+**12. SQLite 是当前 runtime 的事实库**
+- `data/procurement_intel.db` 保存 notices、opportunity_cards、fetch_runs、push_events、quality_reports
+- `data/snapshots/<date>/<hour>.json` 是可回放证据，不是主状态
+- 已知 URL 会写入 `data/runtime/<date>/known_urls.txt`，采集器据此跳过重复详情补全
+- 健康入口：`python3 scripts/run_health_report.py --today <date> --db-path data/procurement_intel.db --output reports/<date>/health_report.json`
+
+**13. 旧实时流水线只作为回滚方案**
+- `scripts/full_collect_and_brief.js` 和 live JSON -> `run_daily_pipeline.py` 仍可用
+- SQLite cutover 后默认不要用旧实时流水线做高量定时任务
+- 如果 SQLite 健康报告 FAIL，可临时回滚到 live JSON 流程，但要保留失败快照和错误信息
