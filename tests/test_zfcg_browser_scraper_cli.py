@@ -56,3 +56,29 @@ def test_zfcg_browser_scraper_reads_colon_after_budget_unit_header() -> None:
     )
 
     assert result.stdout.strip() == "3000000"
+
+
+def test_zfcg_browser_scraper_accepts_known_urls_file() -> None:
+    js = """
+    const scraper = require('./scripts/zfcg_browser_scraper.js');
+    const args = scraper.parseArgs(['--known-urls-file', 'data/known_urls.txt', '--no-details']);
+    console.log(JSON.stringify({ knownUrlsFile: args.knownUrlsFile, details: args.details }));
+    """
+    result = subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True)
+
+    payload = json.loads(result.stdout)
+    assert payload["knownUrlsFile"] == "data/known_urls.txt"
+    assert payload["details"] is False
+
+
+def test_zfcg_browser_scraper_skips_detail_for_known_urls() -> None:
+    js = """
+    const scraper = require('./scripts/zfcg_browser_scraper.js');
+    const item = { detail_url: 'https://zfcg.czt.zj.gov.cn/site/detail?articleId=known' };
+    const args = { details: true, detailLimit: 10 };
+    const knownUrls = new Set([item.detail_url]);
+    console.log(scraper.shouldFetchDetail(item, args, knownUrls, 0));
+    """
+    result = subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True)
+
+    assert result.stdout.strip() == "false"
