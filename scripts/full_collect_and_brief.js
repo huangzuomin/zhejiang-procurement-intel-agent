@@ -174,6 +174,109 @@ function loadJSON(filepath) {
   }
 }
 
+function formatBudget(value) {
+  if (!value) return "未披露";
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(value % 10000 === 0 ? 0 : 1)}万元`;
+  }
+  return `${value}元`;
+}
+
+function compactReasons(reasons) {
+  if (!Array.isArray(reasons) || reasons.length === 0) return "需人工复核";
+  return reasons.slice(0, 6).join("、");
+}
+
+function renderFocusItem(notice, index) {
+  const lines = [
+    `${index}. [${notice.opportunity_class}类] ${notice.title}`,
+    `   ${notice.buyer || "采购人未披露"} / ${formatBudget(notice.budget)}${notice.deadline ? ` / 截止 ${notice.deadline}` : ""}`,
+    `   匹配：${compactReasons(notice.classification_reasons)}`,
+  ];
+  if (notice.project_name && notice.project_name !== notice.title) {
+    lines.push(`   项目：${notice.project_name}`);
+  }
+  return lines;
+}
+
+function generateBrief({
+  scrapePayload,
+  intentionsCount,
+  bidsCount,
+  enrichedCount,
+  mode,
+  today,
+  newCount = 0,
+  newNotices = [],
+}) {
+  const notices = scrapePayload.notices || [];
+  const aItems = notices.filter((n) => n.opportunity_class === "A");
+  const bItems = notices.filter((n) => n.opportunity_class === "B");
+  const cItems = notices.filter((n) => n.opportunity_class === "C");
+  const dItems = notices.filter((n) => n.opportunity_class === "D");
+  const focusItems = [...aItems, ...bItems];
+  const focusDeadlines = focusItems.filter((n) => n.deadline).slice(0, 10);
+
+  const title = `📋 浙江政采情报${mode === "pm" ? (newCount > 0 ? "增量" : "无新增") : mode === "am" ? "日报" : "日报"} | ${today}`;
+  const lines = [
+    title,
+    "",
+    `概览：共${notices.length}条，详情${enrichedCount}条，A ${aItems.length} / B ${bItems.length} / C ${cItems.length} / D ${dItems.length}，A/B ${focusItems.length}条`,
+    `来源：采购意向 ${intentionsCount} + 招标公告 ${bidsCount}`,
+    "",
+  ];
+
+  if (mode === "pm") {
+    lines.push(newCount > 0 ? `较上午新增 ${newCount} 条公告。` : "下午无新增公告，今日数据不变。");
+    lines.push("");
+    if (newCount === 0) {
+      lines.push("上午已推送的重点机会不重复展开。");
+      return lines.join("\n");
+    }
+  }
+
+  if (focusItems.length === 0) {
+    lines.push("今日无媒体/数字化重点机会。");
+    lines.push("低优先级项目已归档，不在群内展开。");
+    return lines.join("\n");
+  }
+
+  if (aItems.length > 0) {
+    lines.push("### A类 · 立即响应");
+    aItems.forEach((notice, index) => lines.push(...renderFocusItem(notice, index + 1)));
+    lines.push("");
+  }
+
+  if (bItems.length > 0) {
+    lines.push("### B类 · 提前跟进");
+    bItems.forEach((notice, index) => lines.push(...renderFocusItem(notice, index + 1)));
+    lines.push("");
+  }
+
+  if (mode === "pm" && newCount > 0 && newNotices.length > 0) {
+    const newFocus = newNotices.filter((n) => n.opportunity_class === "A" || n.opportunity_class === "B");
+    if (newFocus.length > 0) {
+      lines.push("### 下午新增重点");
+      newFocus.slice(0, 5).forEach((notice) => {
+        lines.push(`- [${notice.opportunity_class}类] ${notice.title} / ${notice.buyer || "采购人未披露"} / ${formatBudget(notice.budget)}`);
+      });
+      if (newFocus.length > 5) lines.push(`- 另有 ${newFocus.length - 5} 条新增重点已压缩。`);
+      lines.push("");
+    }
+  }
+
+  if (focusDeadlines.length > 0) {
+    lines.push("### 近期截止");
+    focusDeadlines.forEach((notice) => {
+      lines.push(`- ${notice.deadline} · [${notice.opportunity_class}类] ${notice.title}${notice.budget ? ` (${formatBudget(notice.budget)})` : ""}`);
+    });
+    const hiddenDeadlineCount = focusItems.filter((n) => n.deadline).length - focusDeadlines.length;
+    if (hiddenDeadlineCount > 0) lines.push(`- 另有 ${hiddenDeadlineCount} 条 A/B 截止项目已压缩。`);
+  }
+
+  return lines.join("\n");
+}
+
 async function main() {
   console.log(`[collect] Mode=${MODE} Today=${TODAY}`);
 
@@ -279,85 +382,20 @@ async function main() {
     }
   }
 
-  // Generate brief
   const aItems = scrapePayload.notices.filter((n) => n.opportunity_class === "A");
   const bItems = scrapePayload.notices.filter((n) => n.opportunity_class === "B");
   const cItems = scrapePayload.notices.filter((n) => n.opportunity_class === "C");
   const dItems = scrapePayload.notices.filter((n) => n.opportunity_class === "D");
-  const bidDeadlines = scrapePayload.notices.filter((n) => n.deadline);
-
-  let briefTitle = `📋 浙江政采情报${MODE === "pm" ? (newCount > 0 ? "增量" : "无新增") : MODE === "am" ? "日报" : "日报"} | ${TODAY}`;
-  let briefLines = [];
-  briefLines.push(`> 共采集 ${scrapePayload.notices.length} 条公告（采购意向 ${intentions.length} + 招标公告 ${bids.length}），已补全详情 ${enriched.filter((n) => n.detail).length} 条。`);
-  briefLines.push("");
-
-  if (MODE === "pm" && newCount > 0) {
-    briefLines.push(`📌 **较上午新增 ${newCount} 条公告**`);
-    briefLines.push("");
-  } else if (MODE === "pm" && newCount === 0) {
-    briefLines.push(`📌 下午无新增公告，今日数据不变。`);
-    briefLines.push("");
-  }
-
-  if (aItems.length > 0) {
-    briefLines.push("---\n### 🔴 A类 · 强烈建议关注");
-    aItems.forEach((n, i) => {
-      briefLines.push(`**${i + 1}. ${n.title}**`);
-      if (n.budget) briefLines.push(`- 💰 预算：${n.budget >= 10000 ? (n.budget / 10000).toFixed(n.budget % 10000 === 0 ? 0 : 1) + "万元" : n.budget + "元"}`);
-      if (n.buyer) briefLines.push(`- 🏢 采购人：${n.buyer}`);
-      if (n.deadline) briefLines.push(`- 📅 截止：${n.deadline}`);
-      if (n.project_name && n.project_name !== n.title) briefLines.push(`- 📋 项目：${n.project_name}`);
-      if (n.contact || n.phone) briefLines.push(`- ☎️ ${n.contact || ""} ${n.phone || ""}`);
-      if (n.detail_url) briefLines.push(`- 🔗 ${n.detail_url}`);
-      briefLines.push("");
-    });
-  }
-
-  if (bItems.length > 0) {
-    briefLines.push("---\n### 🟡 B类 · 值得关注");
-    bItems.forEach((n, i) => {
-      briefLines.push(`**${i + 1}. ${n.title}**`);
-      if (n.budget) briefLines.push(`- 💰 预算：${n.budget >= 10000 ? (n.budget / 10000).toFixed(n.budget % 10000 === 0 ? 0 : 1) + "万元" : n.budget + "元"}`);
-      if (n.buyer) briefLines.push(`- 🏢 采购人：${n.buyer}`);
-      if (n.deadline) briefLines.push(`- 📅 截止：${n.deadline}`);
-      if (n.project_name && n.project_name !== n.title) briefLines.push(`- 📋 项目：${n.project_name}`);
-      if (n.classification_reasons?.length) briefLines.push(`- 🔑 匹配关键词：${n.classification_reasons.join("、")}`);
-      if (n.detail_url) briefLines.push(`- 🔗 ${n.detail_url}`);
-      briefLines.push("");
-    });
-  }
-
-  if (MODE === "pm" && newCount > 0 && newNotices.length > 0) {
-    const newAB = newNotices.filter((n) => n.opportunity_class === "A" || n.opportunity_class === "B");
-    if (newAB.length > 0) {
-      briefLines.push("---\n### 🆕 下午新增的重点项目");
-      newAB.forEach((n) => {
-        briefLines.push(`- [${n.opportunity_class}类] ${n.title}`);
-        if (n.budget) briefLines.push(`  预算：${n.budget >= 10000 ? (n.budget / 10000).toFixed(n.budget % 10000 === 0 ? 0 : 1) + "万元" : n.budget + "元"}`);
-      });
-      briefLines.push("");
-    }
-  }
-
-  // Summary table
-  briefLines.push("---\n### 📊 今日概览\n");
-  briefLines.push("| 维度 | 数据 |");
-  briefLines.push("|------|------|");
-  briefLines.push(`| 采集总数 | ${scrapePayload.notices.length}条 |`);
-  briefLines.push(`| 已补详情 | ${enriched.filter((n) => n.detail).length}条 |`);
-  briefLines.push(`| A类机会 | ${aItems.length}个${aItems.length > 0 ? "（融媒体/新媒体/传播服务）" : ""} |`);
-  briefLines.push(`| B类机会 | ${bItems.length}个 |`);
-  briefLines.push(`| 温州地区 | ${cItems.length}个 |`);
-  briefLines.push(`| 招标截止 | ${bidDeadlines.length}个 |`);
-
-  if (bidDeadlines.length > 0) {
-    briefLines.push("\n⚠️ **本周截止提醒**：");
-    bidDeadlines.forEach((n) => {
-      briefLines.push(`- ${n.deadline} · ${n.title}${n.budget ? ` (${(n.budget / 10000).toFixed(n.budget % 10000 === 0 ? 0 : 1)}万元)` : ""}`);
-    });
-  }
-
-  const brief = briefLines.join("\n");
+  const brief = generateBrief({
+    scrapePayload,
+    intentionsCount: intentions.length,
+    bidsCount: bids.length,
+    enrichedCount: enriched.filter((n) => n.detail).length,
+    mode: MODE,
+    today: TODAY,
+    newCount,
+    newNotices,
+  });
   fs.writeFileSync(path.join(REPORTS_DIR, "daily_brief.md"), brief);
   console.log(`\n${brief}`);
   console.log(`\n[brief] Saved to reports/latest_daily_pipeline/daily_brief.md`);
@@ -383,7 +421,14 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  generateBrief,
+  formatBudget,
+};

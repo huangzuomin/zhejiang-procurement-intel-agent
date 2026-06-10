@@ -1,4 +1,4 @@
-from procurement_intel.briefing import render_daily_brief
+from procurement_intel.briefing import render_column_daily_brief, render_daily_brief
 from procurement_intel.classifier import classify_notice
 from procurement_intel.models import Notice, OpportunityCard
 from procurement_intel.scorer import score_notice
@@ -71,3 +71,18 @@ def test_long_brief_preserves_a_class_projects_and_summarizes_lower_classes() ->
     assert "A 类宣传片制作项目" in message
     assert "B 类 GEO 咨询项目" in message
     assert "C/D 类摘要: 3 个低优先级或排除项目" in message
+
+
+def test_column_brief_without_focus_opportunities_stays_concise() -> None:
+    cards = [
+        card("幼儿园家具采购意向", "办公家具和教学用品。", budget=None, deadline=None),
+        card("小学食堂设备采购意向", "食堂设备和厨房用品。", budget=None, deadline=None),
+    ]
+
+    message = render_column_daily_brief("2026-06-10", cards)
+
+    assert "暂无 A/B 类重点机会" in message
+    assert "幼儿园家具采购意向" not in message
+    assert "小学食堂设备采购意向" not in message
+    assert "D类机会提示" not in message
+    assert "字段缺失或风险提示" not in message

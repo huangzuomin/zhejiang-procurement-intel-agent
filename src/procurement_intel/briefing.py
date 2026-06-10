@@ -77,6 +77,18 @@ def render_column_daily_brief(
             ]
         )
 
+    focus_cards = [card for card in cards if card.opportunity_class in {"A", "B"}]
+    if not focus_cards:
+        lines.extend(
+            [
+                "",
+                "重点关注:",
+                "暂无 A/B 类重点机会。",
+                f"本次采集 {len(cards)} 条公告，未发现媒体/数字化重点机会。",
+            ]
+        )
+        return "\n".join(lines)
+
     lines.extend(_render_card_list("招标公告重点机会", bid_cards, max_items=max_items_per_section))
     lines.extend(_render_card_list("采购意向早期线索", intention_cards, max_items=max_items_per_section))
     lines.extend(_render_card_list("媒体/数字化相关机会", media_cards, max_items=max_items_per_section))
