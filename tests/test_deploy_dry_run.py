@@ -20,6 +20,7 @@ def test_deploy_dry_run_reports_allowed_files_and_excludes_forbidden_patterns() 
     assert payload["runtime_target"] == "~/.openclaw/workspace-zhejiang-procurement-intel-agent"
     assert payload["packaging_strategy"] == "agent_workspace_with_tool_layer"
     assert "openclaw/agent/AGENTS.md" in payload["deployable_files"]
+    assert "openclaw/agent/resources/release_management.md" in payload["deployable_files"]
     assert "src/procurement_intel/daily_pipeline.py" in payload["deployable_files"]
     assert "src/procurement_intel/storage.py" in payload["deployable_files"]
     assert "src/procurement_intel/hourly_ingestion.py" in payload["deployable_files"]
