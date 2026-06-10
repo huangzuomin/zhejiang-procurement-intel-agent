@@ -355,6 +355,109 @@ class SQLiteStore:
             )
             conn.commit()
 
+    def record_push_event(
+        self,
+        *,
+        notice_id: int | None,
+        brief_date: str,
+        brief_mode: str,
+        status: str,
+        pushed_at: str,
+    ) -> None:
+        self.initialize()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                insert into push_events (notice_id, brief_date, brief_mode, pushed_at, status)
+                values (?, ?, ?, ?, ?)
+                """,
+                (notice_id, brief_date, brief_mode, pushed_at, status),
+            )
+            conn.commit()
+
+    def list_cards_for_date(self, today: str) -> list[dict]:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                select
+                  notices.id as notice_id,
+                  notices.detail_url,
+                  notices.title,
+                  notices.notice_type,
+                  notices.source_column,
+                  notices.publish_date,
+                  notices.region,
+                  notices.buyer,
+                  notices.budget,
+                  notices.deadline,
+                  opportunity_cards.opportunity_class,
+                  opportunity_cards.primary_category,
+                  opportunity_cards.reasons_json,
+                  opportunity_cards.risks_json,
+                  opportunity_cards.missing_fields_json,
+                  opportunity_cards.recommended_action,
+                  opportunity_cards.scored_at
+                from notices
+                join opportunity_cards on opportunity_cards.notice_id = notices.id
+                where notices.publish_date = ? or substr(notices.first_seen_at, 1, 10) = ?
+                order by
+                  case opportunity_cards.opportunity_class
+                    when 'A' then 1
+                    when 'B' then 2
+                    when 'C' then 3
+                    else 4
+                  end,
+                  notices.publish_date desc,
+                  notices.id
+                """,
+                (today, today),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def list_unpushed_focus_cards(self, today: str, *, pushed_mode: str = "am") -> list[dict]:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                select
+                  notices.id as notice_id,
+                  notices.detail_url,
+                  notices.title,
+                  notices.notice_type,
+                  notices.source_column,
+                  notices.publish_date,
+                  notices.region,
+                  notices.buyer,
+                  notices.budget,
+                  notices.deadline,
+                  opportunity_cards.opportunity_class,
+                  opportunity_cards.primary_category,
+                  opportunity_cards.reasons_json,
+                  opportunity_cards.risks_json,
+                  opportunity_cards.missing_fields_json,
+                  opportunity_cards.recommended_action,
+                  opportunity_cards.scored_at
+                from notices
+                join opportunity_cards on opportunity_cards.notice_id = notices.id
+                where (notices.publish_date = ? or substr(notices.first_seen_at, 1, 10) = ?)
+                  and opportunity_cards.opportunity_class in ('A', 'B')
+                  and not exists (
+                    select 1
+                    from push_events
+                    where push_events.notice_id = notices.id
+                      and push_events.brief_date = ?
+                      and push_events.brief_mode = ?
+                      and push_events.status = 'success'
+                  )
+                order by
+                  case opportunity_cards.opportunity_class when 'A' then 1 else 2 end,
+                  notices.id
+                """,
+                (today, today, today, pushed_mode),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
 
 def _confidence_to_float(value: str) -> float:
     return {
