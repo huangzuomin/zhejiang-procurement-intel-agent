@@ -381,11 +381,25 @@ Acceptance Criteria:
 
 ### Phase 1: 存储底座
 
-1. 新增 SQLite storage adapter。
-2. 建立 schema 和 migrations。
-3. 将 AM/PM 采集结果入库。
-4. 保留 JSON/Markdown 输出。
-5. 增加入库和去重测试。
+1. 已新增 SQLite storage adapter。
+2. 已建立首版 schema：`fetch_runs`、`notices`、`notice_details`、`opportunity_cards`、`push_events`、`quality_reports`。
+3. 已支持小时级采集快照入库和 URL 去重。
+4. 已支持 AM/PM 简报从 SQLite 读取，避免简报时间点实时全量抓取。
+5. 仍保留 JSON/Markdown 输出，用于可观测性、人工复核和回放。
+
+Runtime commands:
+
+```bash
+python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path data/procurement_intel.db
+python3 scripts/run_brief_from_db.py --mode am --today <date> --db-path data/procurement_intel.db --output-dir reports/<date>/am
+python3 scripts/run_brief_from_db.py --mode pm --today <date> --since-brief am --db-path data/procurement_intel.db --output-dir reports/<date>/pm
+```
+
+Operational rule:
+
+```text
+小时任务负责采集和入库；AM/PM 简报任务只读 SQLite，不启动浏览器抓取。
+```
 
 ### Phase 2: 成交结果
 
@@ -459,7 +473,7 @@ reports/<date>/
 Suggested first task:
 
 ```text
-实现 SQLite storage adapter，并把现有双栏目采集结果、opportunity_cards、quality_report 写入本地数据库，同时保持现有 JSON/Markdown 输出不变。
+继续完成 SQLite 小时级采集计划中的健康报告、部署 dry-run 清单更新和 runtime 切换 runbook。
 ```
 
 ## 已制定实施计划
