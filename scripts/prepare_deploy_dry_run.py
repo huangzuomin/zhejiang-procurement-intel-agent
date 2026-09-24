@@ -20,6 +20,7 @@ TOOL_SCRIPTS = {
     "scripts/run_hourly_ingest.py",
     "scripts/validate.sh",
     "scripts/zfcg_browser_scraper.js",
+    "scripts/zfcg_api_scraper.py",
 }
 ROOT_DEPLOYABLE_FILES = {
     "package.json",
