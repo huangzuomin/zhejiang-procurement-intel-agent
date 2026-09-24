@@ -31,7 +31,7 @@ def test_hourly_collection_dry_run_prints_scraper_and_ingest_commands(tmp_path):
     assert payload["mode"] == "hourly"
     assert payload["today"] == "2026-06-10"
     assert payload["hour"] == "10"
-    assert "zfcg_browser_scraper.js" in payload["scraper_command"][1]
+    assert "zfcg_api_scraper.py" in payload["scraper_command"][1]
     assert "--known-urls-file" in payload["scraper_command"]
     assert "run_hourly_ingest.py" in payload["ingest_command"][1]
     assert payload["snapshot_path"].endswith("data/snapshots/2026-06-10/10.json")
@@ -65,3 +65,12 @@ def test_hourly_collection_dry_run_writes_known_urls_file(tmp_path):
 
     payload = json.loads(result.stdout)
     assert Path(payload["known_urls_path"]).exists()
+
+
+def test_hourly_collection_browser_fallback_is_explicit(tmp_path):
+    result = subprocess.run(
+        ["python3", "scripts/run_hourly_collection.py", "--today", "2026-06-10", "--hour", "11",
+         "--db-path", str(tmp_path / "db.sqlite"), "--collector", "browser", "--dry-run", "--json"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+    assert "zfcg_browser_scraper.js" in json.loads(result.stdout)["scraper_command"][1]
