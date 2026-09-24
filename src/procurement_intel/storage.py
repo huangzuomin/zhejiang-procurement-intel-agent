@@ -232,8 +232,8 @@ class SQLiteStore:
             return {
                 str(row[0])
                 for row in conn.execute(
-                    "select detail_url from notices where publish_date = ? or substr(first_seen_at, 1, 10) = ?",
-                    (today, today),
+                    "select detail_url from notices where publish_date between date(?, '-2 days') and ? or substr(first_seen_at, 1, 10) = ?",
+                    (today, today, today),
                 )
             }
 
@@ -418,7 +418,7 @@ class SQLiteStore:
                 from notices
                 join opportunity_cards on opportunity_cards.notice_id = notices.id
                 where notices.publish_date = ?
-                   or (notices.publish_date is null and substr(notices.first_seen_at, 1, 10) = ?)
+                   or substr(notices.first_seen_at, 1, 10) = ?
                 order by
                   case opportunity_cards.opportunity_class
                     when 'A' then 1
@@ -458,7 +458,7 @@ class SQLiteStore:
                   opportunity_cards.scored_at
                 from notices
                 join opportunity_cards on opportunity_cards.notice_id = notices.id
-                where (notices.publish_date = ? or (notices.publish_date is null and substr(notices.first_seen_at, 1, 10) = ?))
+                where (notices.publish_date = ? or substr(notices.first_seen_at, 1, 10) = ?)
                   and opportunity_cards.opportunity_class in ('A', 'B')
                   and not exists (
                     select 1

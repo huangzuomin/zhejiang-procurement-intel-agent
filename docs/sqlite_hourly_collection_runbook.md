@@ -15,7 +15,7 @@ Recommended first schedule:
 - PM brief: after afternoon collection, for example 15:00.
 - Health report: after AM and PM brief generation, or at end of day.
 
-Use the runtime server clock and record the date explicitly as `YYYY-MM-DD`.
+Use the Asia/Shanghai calendar date and record it explicitly as `YYYY-MM-DD` even if the runtime server uses UTC.
 
 ## Hourly Collection
 
@@ -28,11 +28,12 @@ python3 scripts/run_hourly_collection.py --today <date> --hour <HH> --db-path da
 Default behavior:
 
 - Writes known URLs to `data/runtime/<date>/known_urls.txt`.
-- Runs `scripts/zfcg_browser_scraper.js` for `intention,bid`.
+- Queries the site's frontend JSON endpoints for `intention,bid` with `scripts/zfcg_api_scraper.py`; `--collector browser` selects the supervised browser fallback.
 - Saves raw scraper snapshot to `data/snapshots/<date>/<HH>.json`.
 - Ingests the snapshot into SQLite through `scripts/run_hourly_ingest.py`.
-- Skips detail enrichment for URLs already known for the day.
-- In normal hourly mode, ingests only notices whose `publish_date` equals `--today`.
+- Skips detail enrichment for URLs already known within the two-day lookback.
+- In normal hourly mode, ingests notices published today or within the prior two days and includes newly seen notices in today's brief.
+- Requires both columns and a completed page scan. Hitting the page cap or failing quality blocks ingestion and records failure; the default is 900 items per column, and `--limit` can be raised after reviewing an incomplete snapshot.
 - If a known URL skips detail enrichment, existing non-empty buyer, budget, deadline and opportunity score are preserved.
 
 Dry-run without browser launch:
@@ -71,7 +72,7 @@ The PM brief should only expand unpushed A/B focus opportunities. It should not 
 
 ## Bootstrap and Backfill
 
-First-day cutover risk: an empty SQLite database plus a high collection limit can see historical list items. Normal hourly ingestion filters those out by default because only `publish_date == --today` is accepted.
+First-day cutover risk: an empty SQLite database can require many pages. Normal hourly ingestion limits itself to the prior two days; a capped scan is marked incomplete and must be reviewed and rerun with a larger `--limit` before briefs.
 
 For controlled backfill only, ingest an existing snapshot explicitly:
 
@@ -102,7 +103,7 @@ Status rules:
 
 ## Failure Behavior
 
-- Scraper failure: `run_hourly_collection.py` records a failed `fetch_runs` row and exits nonzero.
+- Scraper failure: `run_hourly_collection.py` records a failed `fetch_runs` row and exits nonzero. An incomplete snapshot remains available for diagnosis.
 - Ingest failure: the command exits nonzero and keeps the raw snapshot for debugging.
 - Brief generation failure: do not mark DingTalk push as successful.
 - Health `WARN` or `FAIL`: send or surface the warning before relying on the brief.

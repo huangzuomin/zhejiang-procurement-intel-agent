@@ -22,7 +22,8 @@ The project currently focuses on two public columns from Zhejiang Government Pro
 ```text
 openclaw/agent/                  OpenClaw Agent identity, resources and internal skill docs
 src/procurement_intel/           Deterministic local intelligence modules
-scripts/zfcg_browser_scraper.js  Dual-column browser collector
+scripts/zfcg_api_scraper.py     Default dual-column frontend JSON collector
+scripts/zfcg_browser_scraper.js  Manual browser fallback
 scripts/run_daily_pipeline.py    End-to-end daily pipeline
 scripts/query_opportunity_cards.py
 scripts/prepare_deploy_dry_run.py
@@ -36,7 +37,7 @@ docs/                            Design, deployment and audit documents
 - Python 3.12+ or 3.14+
 - Node.js 20+
 - `pytest` for tests
-- `puppeteer` for live browser collection
+- `puppeteer` only for the optional browser fallback
 
 Install JavaScript dependency:
 

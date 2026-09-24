@@ -38,7 +38,7 @@ python3 scripts/run_hourly_collection.py --today $(date +%F) --hour $(date +%H) 
 
 Rules:
 
-- This is the only scheduled job that should launch browser collection.
+- This is the only scheduled collection job. It uses the public JSON endpoints by default; the browser fallback is manual.
 - Do not use `--include-historical` in this job.
 - Keep `data/snapshots/` for replay and audit.
 

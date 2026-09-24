@@ -38,6 +38,7 @@ def main() -> int:
         timeout_ms=args.timeout_ms,
         render_wait_ms=args.render_wait_ms,
         delay_ms=args.delay_ms,
+        collector=args.collector,
     )
     ingest_command = build_ingest_command(
         today=today,
@@ -100,8 +101,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--db-path", default="data/procurement_intel.db", help="SQLite database path.")
     parser.add_argument("--runtime-dir", default="data/runtime", help="Directory for runtime helper files.")
     parser.add_argument("--snapshot-dir", default="data/snapshots", help="Directory for raw scraper snapshots.")
-    parser.add_argument("--limit", type=int, default=300, help="Per-column list collection limit.")
-    parser.add_argument("--detail-limit", type=int, default=300, help="Per-column detail enrichment limit.")
+    parser.add_argument("--limit", type=int, default=900, help="Per-column list collection limit.")
+    parser.add_argument("--collector", choices=("api", "browser"), default="api", help="Use frontend JSON endpoints or the manual browser fallback.")
+    parser.add_argument("--detail-limit", type=int, default=900, help="Per-column detail enrichment limit.")
     parser.add_argument("--timeout-ms", type=int, default=45000, help="Browser/detail request timeout.")
     parser.add_argument("--render-wait-ms", type=int, default=5000, help="Initial page render wait.")
     parser.add_argument("--delay-ms", type=int, default=800, help="Delay between detail requests.")
@@ -134,7 +136,16 @@ def build_scraper_command(
     timeout_ms: int,
     render_wait_ms: int,
     delay_ms: int,
+    collector: str = "api",
 ) -> list[str]:
+    if collector == "api":
+        return [
+            "python3", "scripts/zfcg_api_scraper.py", "--today", today,
+            "--targets", "intention,bid", "--page-limit", str(max(2, (limit + 14) // 15)),
+            "--detail-limit", str(detail_limit), "--known-urls-file", str(known_urls_path),
+            "--output", str(snapshot_path), "--timeout-ms", str(timeout_ms),
+            "--delay-ms", str(delay_ms),
+        ]
     return [
         "node",
         "scripts/zfcg_browser_scraper.js",
@@ -186,7 +197,7 @@ def record_failed_run(
         run_type="hourly",
         started_at=started_at,
         finished_at=finished_at,
-        source="zfcg_browser_scraper",
+        source="zfcg_collection",
         raw_count=0,
         new_count=0,
         enriched_count=0,
