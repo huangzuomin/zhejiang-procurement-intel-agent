@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .classifier import classify_notice
 from .external_fetcher import zfcg_scraper_payload_to_notices
@@ -39,16 +40,18 @@ def ingest_scraper_payload(
     started_at = _now_iso()
     run_id = _run_id(run_type, started_at)
     item_by_url = _browser_items_by_url(payload)
+    quality_report = evaluate_zfcg_scraper_payload(payload, today=today)
+    cutoff = (datetime.strptime(today, "%Y-%m-%d").date() - timedelta(days=2)).isoformat()
     notices = [
         notice
         for notice in zfcg_scraper_payload_to_notices(payload)
-        if include_historical or notice.publish_date == today
+        if include_historical or (notice.publish_date is not None and cutoff <= notice.publish_date <= today)
     ]
     raw_count = _raw_count(payload)
     new_count = 0
     opportunity_counts: Counter[str] = Counter()
 
-    for notice in notices:
+    for notice in ([] if quality_report["quality_grade"] == "FAIL" else notices):
         existing = store.get_notice_by_url(notice.url)
         was_known = existing is not None
         is_known_detail_skip = _is_known_detail_skip(item_by_url.get(notice.url))
@@ -69,9 +72,8 @@ def ingest_scraper_payload(
         opportunity_counts[card.opportunity_class] += 1
         store.upsert_opportunity_card(notice_id, card, scored_at=started_at)
 
-    quality_report = evaluate_zfcg_scraper_payload(payload, today=today)
     finished_at = _now_iso()
-    enriched_count = sum(1 for notice in notices if notice.content and notice.content != notice.title)
+    enriched_count = sum(1 for notice in notices if notice.content and notice.content != notice.title) if quality_report["quality_grade"] != "FAIL" else 0
     store.record_fetch_run(
         run_id=run_id,
         run_type=run_type,
@@ -81,7 +83,8 @@ def ingest_scraper_payload(
         raw_count=raw_count,
         new_count=new_count,
         enriched_count=enriched_count,
-        status="success",
+        status="failed" if quality_report["quality_grade"] == "FAIL" else "success",
+        error="quality_grade=FAIL" if quality_report["quality_grade"] == "FAIL" else None,
     )
     store.record_quality_report(
         fetch_run_id=run_id,
@@ -92,7 +95,7 @@ def ingest_scraper_payload(
     return HourlyIngestResult(
         run_id=run_id,
         raw_count=raw_count,
-        cleaned_count=len(notices),
+        cleaned_count=0 if quality_report["quality_grade"] == "FAIL" else len(notices),
         new_count=new_count,
         updated_count=max(0, len(notices) - new_count),
         opportunity_counts={key: opportunity_counts.get(key, 0) for key in ["A", "B", "C", "D"]},
@@ -130,4 +133,4 @@ def _run_id(run_type: str, timestamp: str) -> str:
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat()
+    return datetime.now(ZoneInfo("Asia/Shanghai")).replace(microsecond=0).isoformat()
