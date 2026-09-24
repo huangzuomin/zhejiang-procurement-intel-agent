@@ -71,8 +71,12 @@ def evaluate_zfcg_scraper_payload(payload: dict[str, Any], *, today: str = "2026
         "budget_missing_count": missing_budget_count,
         "deadline_missing_count": missing_deadline_count,
         "raw_detail_text_missing_count": raw_detail_text_missing_count,
+        "new_detail_missing_count": sum(1 for _, item in raw_items if not item.get("known_url") and not item.get("raw_detail_text")),
+        "new_item_count": sum(1 for _, item in raw_items if not item.get("known_url")),
         "detail_shell_or_unavailable": bool(cleaned_notices and raw_detail_text_missing_count == len(cleaned_notices)),
         "warnings": warnings,
+        "collection_status": payload.get("collection_status"),
+        "columns": payload.get("columns", []),
     }
     report["quality_grade"] = _quality_grade(report)
     return report
@@ -189,6 +193,16 @@ def _ratio(numerator: int, denominator: int) -> float:
 
 
 def _quality_grade(report: dict[str, Any]) -> str:
+    if report.get("collection_status") == "partial":
+        return "FAIL"
+    if report.get("collection_status") and report["new_item_count"] and report["new_detail_missing_count"] == report["new_item_count"]:
+        return "FAIL"
+    if report.get("collection_status") and report["new_item_count"] and report["new_detail_missing_count"] / report["new_item_count"] > 0.1:
+        return "FAIL"
+    if report.get("collection_status") and (
+        {"intention", "bid"} - {c.get("key") for c in report.get("columns", []) if isinstance(c, dict) and c.get("pages", 0) >= 2}
+    ):
+        return "FAIL"
     raw_count = report["raw_item_count"]
     cleaned_count = report["cleaned_notice_count"]
     if cleaned_count == 0:
