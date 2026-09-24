@@ -1,5 +1,23 @@
 # Decision Log
 
+## 2026-09-24 — Public JSON collector
+
+### Observation
+
+The official Zhejiang procurement frontend serves both target columns through `POST /portal/category` and article bodies through `GET /portal/detail`. A live probe returned valid two-page lists and real detail text for both column codes. These are frontend endpoints, not a documented stable public API.
+
+### Decision
+
+Make a small Python JSON collector the default hourly entrypoint, retain the Puppeteer collector as an explicit supervised fallback, limit requests and retries, keep raw snapshots, and fail closed when the scan reaches its page cap or a target is missing. Include announcements published within a two-day lookback when first discovered and show them in the discovery day's brief. Failed quality checks record a failed run without writing notices.
+
+### Reason
+
+The browser workflow has timed out under interactive step limits. Directly reading the same public JSON responses removes the browser dependency while preserving provenance and a way to diagnose schema drift. The bounded lookback catches delayed postings without unrestricted historical import.
+
+### Impact
+
+An initial collection may require a higher `--limit` to cover the two-day window. The JSON schema, access policy and request behavior must be monitored; no CAPTCHA or access-control bypass is authorized. Runtime installation and scheduling remain separate from this repository merge.
+
 ## 2026-06-08
 
 ### Observation
